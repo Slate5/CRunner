@@ -14,6 +14,12 @@ runtime_error_chk(){
   fi
 }
 
+remove_files(){
+  for file in $(ls -F | grep "$1"); do
+    if (readelf -p .comment "./$file" | grep -q 'GCC'); then rm -v "./$file"; fi
+  done
+}
+
 readonly VALID_EXTENSIONS='\.(c(c?|pp?|[x+]{2})|C(PP)?)$'
 
 if [[ -x "$1" && -z "$2" ]]; then
@@ -23,7 +29,7 @@ if [[ -x "$1" && -z "$2" ]]; then
   else echo "Not a C/C++ compiled file"
   fi
 elif [[ -f "$1" || -f "$2" ]]; then
-  trap 'if [[ -z "$2" ]]; then rm a.out; fi && exit' SIGINT
+  trap 'if [[ -z "$2" ]]; then rm a.out; fi && exit 130' SIGINT
   if grep -Eq "$VALID_EXTENSIONS" <<< "$2"; then
     source_file="$2"
     comp_file="$1"
@@ -46,15 +52,14 @@ elif [[ -f "$1" || -f "$2" ]]; then
   if [[ $(( end - start )) -lt 500000000 ]]; then
     rm a.out
   else
-    name=test$(( $(ls -rv test* | grep -om 1 '[0-9]*') + 1 ))
+    name=test$(( $(ls -rv test* | grep -om 1 '[0-9]\+') + 1 ))
     mv a.out "$name"
   fi
 elif [[ "$1" =~ ^(-c|comp)$ ]]; then
-  for i in {1..20}; do
-    last_compiled_file=$(ls -tF | grep -m "$i" '*$' | tail -1 | sed 's/.$//')
-    if (readelf -p .comment "./$last_compiled_file" | grep -q 'GCC'); then
-      echo "Running $last_compiled_file..."
-      "./$last_compiled_file"
+  for file in $(ls -Ft | grep '*$'); do
+    if (readelf -p .comment "./$file" | grep -q 'GCC'); then
+      echo "Running $file..."
+      "./$file"
       runtime_error_chk
       exit
     fi
@@ -71,7 +76,7 @@ elif [[ "$1" =~ ^(-h|--help)$ ]]; then
 		  -h, --help         display this help text
 		  -c, comp           runs the most recently compiled file
 		  +comp_file         like default but saves output as comp_file
-		  rmt                remove all test files from the current directory
+		  rmt                remove comp test(n) files from the current directory
 		  rmc                remove every compiled file from the current directory
 
 		Explanation:
@@ -80,7 +85,9 @@ elif [[ "$1" =~ ^(-h|--help)$ ]]; then
 		  a "test(n)". Else, a.out will be removed if [output_file_name] is omitted.
 	EOF
 elif [[ "$1" =~ ^rmt$ ]]; then
-  rm test* || echo 'There are no test files'
+  remove_files "^test[0-9]\+\*$"
+elif [[ "$1" =~ ^rmc$ ]]; then
+  remove_files "*$"
 elif [[ -z "$1" || "$1" =~ ^\+.+ ]]; then
   last_c_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
   if [[ -n "$last_c_file" ]]; then
