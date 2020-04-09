@@ -16,44 +16,8 @@ runtime_error_chk(){
 
 readonly VALID_EXTENSIONS='\.(c(c?|pp?|[x+]{2})|C(PP)?)$'
 
-if [[ -z "$1" ]]; then
-  last_c_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
-  if [[ -n "$last_c_file" ]]; then
-    echo "Running $last_c_file..."
-    c "./$last_c_file"
-  else echo "There are no C/C++ files"
-  fi
-elif [[ "$1" =~ ^(-c|comp)$ ]]; then
-  for i in {1..20}; do
-    last_compiled_file=$(ls -tF | grep -m "$i" '*$' | tail -1 | sed 's/.$//')
-    if (readelf -p .comment "$last_compiled_file" | grep -q 'GCC'); then
-      echo "Running $last_compiled_file..."
-      "./$last_compiled_file"
-      exit
-    fi
-  done
-  echo "There are no C/C++ compiled files"
-elif [[ "$1" =~ ^(-h|--help)$ ]]; then
-	cat <<- EOF
-		Compile and run programs written in C/C++.
-
-		Default: c (runs last modified file.c)
-		Usage: c <file.c|compiled_file> [output_file_name]
-		Example: c file.c || c file.c output_file_name || c test1
-
-		  -h, --help            display this help text
-		  -c, comp              runs the most recently compiled file
-		  rm, clear             remove all test files from current directory
-
-		Explanation:
-		  This program will compile a file and run it as well. If compiling lasts
-		  for more than 0.5 sec, after a runtime, a compiled file will be saved as
-		  a "test(n)". Else, a.out will be removed if [output_file_name] is omitted.
-	EOF
-elif [[ "$1" =~ ^(rm|clear)$ ]]; then
-  rm test* || echo 'There are no test files'
-elif [[ -x "$1" && -z "$2" ]]; then
-  if (readelf -p .comment "$1" | grep -q 'GCC'); then
+if [[ -x "$1" && -z "$2" ]]; then
+  if (readelf -p .comment "./$1" | grep -q 'GCC'); then
     "./$1"
     runtime_error_chk
   else echo "Not a C/C++ compiled file"
@@ -67,7 +31,8 @@ elif [[ -f "$1" || -f "$2" ]]; then
     source_file="$1"
     comp_file="$2"
   fi
-  if [[ -n "$2" ]]; then outfile="-o $comp_file"; fi
+  if grep -q '^-' <<< "$source_file"; then source_file="./$source_file"; fi
+  if [[ -n "$2" ]]; then outfile="-o ./$comp_file"; fi
   start=$(date +%s%N)
   gcc "$source_file" $outfile 2>&1 || exit
   end=$(date +%s%N)
@@ -83,6 +48,45 @@ elif [[ -f "$1" || -f "$2" ]]; then
   else
     name=test$(( $(ls -rv test* | grep -om 1 '[0-9]*') + 1 ))
     mv a.out "$name"
+  fi
+elif [[ "$1" =~ ^(-c|comp)$ ]]; then
+  for i in {1..20}; do
+    last_compiled_file=$(ls -tF | grep -m "$i" '*$' | tail -1 | sed 's/.$//')
+    if (readelf -p .comment "./$last_compiled_file" | grep -q 'GCC'); then
+      echo "Running $last_compiled_file..."
+      "./$last_compiled_file"
+      runtime_error_chk
+      exit
+    fi
+  done
+  echo "There are no C/C++ compiled files"
+elif [[ "$1" =~ ^(-h|--help)$ ]]; then
+	cat <<- EOF
+		Compile and run programs written in C/C++.
+
+		Default: c (runs last modified file.c)
+		Usage: c [file.c|compiled_file] [output_file_name]
+		Example: c file.c || c output_file_name file.c || c compiled_file
+
+		  -h, --help         display this help text
+		  -c, comp           runs the most recently compiled file
+		  +comp_file         like default but saves output as comp_file
+		  rmt                remove all test files from the current directory
+		  rmc                remove every compiled file from the current directory
+
+		Explanation:
+		  This program will compile a file and run it as well. If compiling lasts
+		  for more than 0.5 sec, after a runtime, a compiled file will be saved as
+		  a "test(n)". Else, a.out will be removed if [output_file_name] is omitted.
+	EOF
+elif [[ "$1" =~ ^rmt$ ]]; then
+  rm test* || echo 'There are no test files'
+elif [[ -z "$1" || "$1" =~ ^\+.+ ]]; then
+  last_c_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
+  if [[ -n "$last_c_file" ]]; then
+    echo "Running $last_c_file..."
+    c "$last_c_file" "${1:1}"
+  else echo "There are no C/C++ files"
   fi
 else echo "That file doesn't exist"
 fi
