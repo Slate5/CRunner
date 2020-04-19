@@ -6,7 +6,7 @@ exec 4< "$error_msgs"
 rm "$error_msgs"
 exec 2>&3
 
-runtime_error_chk(){
+runtime_error_chk() {
   if [[ $? != 0 ]]; then
     tput setaf 1
     sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4
@@ -14,16 +14,16 @@ runtime_error_chk(){
   fi
 }
 
-remove_files(){
+remove_files() {
   for file in $(ls -F | grep "$1"); do
-    if (readelf -p .comment "./$file" | grep -q 'GCC'); then rm -v "./$file"; fi
+    if (readelf -p .comment "./$file" | grep -qE '(GCC|clang)'); then rm -v "./$file"; fi
   done
 }
 
 readonly VALID_EXTENSIONS='\.(c(c?|pp?|[x+]{2})|C(PP)?)$'
 
 if [[ -x "$1" && -z "$2" ]]; then
-  if (readelf -p .comment "./$1" | grep -q 'GCC'); then
+  if (readelf -p .comment "./$1" | grep -qE '(GCC|clang)'); then
     "./$1"
     runtime_error_chk
   else echo "Not a C/C++ compiled file"
@@ -57,7 +57,7 @@ elif [[ -f "$1" || -f "$2" ]]; then
   fi
 elif [[ "$1" =~ ^(-c|comp)$ ]]; then
   for file in $(ls -Ft | grep '*$'); do
-    if (readelf -p .comment "./$file" | grep -q 'GCC'); then
+    if (readelf -p .comment "./$file" | grep -qE '(GCC|clang)'); then
       echo "Running $file..."
       "./$file"
       runtime_error_chk
