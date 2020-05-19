@@ -32,18 +32,19 @@ elif [[ -f "$1" || -f "$2" ]]; then
   trap 'if [[ -z "$2" ]]; then rm a.out; fi && exit 130' SIGINT
   if grep -Eq "$VALID_EXTENSIONS" <<< "$2"; then
     source_file="$2"
-    comp_file="$1"
+    output_file="$1"
   else
     source_file="$1"
-    comp_file="$2"
+    output_file="$2"
   fi
   if grep -q '^-' <<< "$source_file"; then source_file="./$source_file"; fi
-  if [[ -n "$2" ]]; then outfile="-o ./$comp_file"; fi
+  if ! [[ "$output_file" =~ / ]]; then output_file="./$output_file"; fi
+  if [[ -n "$2" ]]; then outfile="-o $output_file"; fi
   start=$(date +%s%N)
   gcc "$source_file" $outfile 2>&1 || exit
   end=$(date +%s%N)
   if [[ -n "$2" ]]; then
-    "./$comp_file"
+    "$output_file"
     runtime_error_chk
     exit
   fi
@@ -73,11 +74,11 @@ elif [[ "$1" =~ ^(-h|--help)$ ]]; then
 		Usage: c [file.c|compiled_file] [output_file_name]
 		Example: c file.c || c output_file_name file.c || c compiled_file
 
-		  -h, --help         display this help text
-		  -c, comp           runs the most recently compiled file
-		  +comp_file         like default but saves output as comp_file
-		  rmt                remove comp test(n) files from the current directory
-		  rmc                remove every compiled file from the current directory
+		  -h, --help          display this help text
+		  -c, comp            run the most recently compiled file
+		  +output_file_name   like default but saves output as output_file_name
+		  rmt                 remove comp test(n) files from the current directory
+		  rmc                 remove every compiled file from the current directory
 
 		Explanation:
 		  This program will compile a file and run it as well. If compiling lasts
