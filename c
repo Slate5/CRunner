@@ -7,7 +7,7 @@ rm "$error_msgs"
 exec 2>&3
 
 run_file() {
-	if [[ "$C_BENCHMARK" ]]; then time "$1"
+	if [[ "$C_BENCHMARK" ]]; then /usr/bin/time "$1"
 	else "$1"
 	fi
 }
@@ -19,7 +19,9 @@ check_runtime() {
 		sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4
 		tput sgr0
 		exit 1
-	else cat <&4
+	else
+		desc_4=$(cat <&4)
+		sed "s/....+..../$(grep -o '....+....' <<< "$desc_4" | bc)/" <<< "$desc_4"
 	fi
 }
 
@@ -30,6 +32,7 @@ remove_files() {
 }
 
 [[ "$1" == "-b" ]] && export C_BENCHMARK=yes && shift
+export TIME="\nBenchmark data:\nreal\t%E\nuser\t%U\nsys\t%S\nusr+sys\t%U+%S\nCPU\t%P\nRSS\t%M KB"
 readonly VALID_EXTENSIONS='\.(c(c?|pp?|[x+]{2})|C(PP)?)$'
 
 if [[ -x "$1" && -z "$2" ]]; then
