@@ -7,7 +7,9 @@ rm "$error_msgs"
 exec 2>&3
 
 run_file() {
-	if [[ "$C_BENCHMARK" ]]; then /usr/bin/time -f "$TIME" "./$1"
+	[[ "$1" != "a.out" ]] && comp_file=" $1"
+	echo -e "\e[1;35mRunning$comp_file...\e[1;0m"
+	if [[ $C_BENCHMARK ]]; then /usr/bin/time -f "$TIME" "./$1"
 	else "./$1"
 	fi
 }
@@ -17,7 +19,7 @@ check_runtime() {
 		tput setaf 1
 		sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4
 		tput sgr0
-		[[ "$output_file" ]] && rm -v "$output_file" || rm a.out
+		[[ $output_file ]] && rm -v "$output_file" || rm a.out
 		exit 1
 	else
 		desc_4=$(cat <&4)
@@ -32,15 +34,15 @@ remove_files() {
 }
 
 TIME="\nBenchmark data:\nreal\t%E\nuser\t%U\nsys\t%S\nusr+sys\t%U+%S\nCPU\t%P\nRSS\t%M KB"
-readonly VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?)($| )'
+readonly VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?|go)($| )'
+[[ "$@" =~ (^| )-b($| ) ]] && C_BENCHMARK='yes'
 
 if [[ "$@" =~ (^| )-h($| ) ]]; then set -- "-h"
+elif [[ "$@" =~ (^| )(comp|rm[ta])($| ) ]]; then set -- "${BASH_REMATCH[2]}"
 else
-	[[ "$@" =~ (^| )-b($| ) ]] && C_BENCHMARK='yes'
 	for arg do
 		shift
-		case $arg in
-			comp|rmt|rmc) set -- "$arg"; break;;
+		case "$arg" in
 			-b) ;;
 			+*) output_file="${arg:1}"; set -- "$@" "-o" "$output_file";;
 			-o) output_file="$1";&
@@ -49,7 +51,7 @@ else
 	done
 fi
 
-if [[ -x "$1" && -z "$2" ]]; then
+if [[ -x $1 && -z $2 ]]; then
 	if (readelf -p .comment "./$1" | grep -Eq '(GCC|clang)'); then
 		run_file "$1"
 		check_runtime
@@ -58,7 +60,6 @@ if [[ -x "$1" && -z "$2" ]]; then
 elif [[ "$1" == "comp" ]]; then
 	for file in $(ls -Ft | grep '*$'); do
 		if (readelf -p .comment "./$file" | grep -Eq '(GCC|clang)'); then
-			echo -e "Running $file...\n"
 			run_file "$file"
 			check_runtime
 			exit 0
@@ -67,19 +68,19 @@ elif [[ "$1" == "comp" ]]; then
 	echo "There are no GCC compiled files here"
 elif [[ "$1" == "-h" ]]; then
 	cat <<- EOF
-		Compiles and runs programs written in C/C++ using GCC.
+		Compiles and runs programs written in C/C++/Go using GCC.
 
 		Default: c (runs last modified <file.c>)
 		Usage: c [file.c|compiled_file] [+output_file_name]
 		Examples: c file.c || c +output_file_name file.c || c +output_file_name
 
-		  -b                  Benchmark test
-		  -h                  Display this help text
-		  --help[=]           Generic or specific GCC help text
-		  comp                Run the most recently compiled file
-		  +output_file_name   Place the output into 'output_file_name'
-		  rmt                 Remove comp test(n) files from the current directory
-		  rmc                 Remove every compiled file from the current directory
+		  -b                  Show benchmark data.
+		  -h                  Display this information.
+		  --help[=]           Display GCC's information.
+		  rmt                 Remove compiled "test(n)" files.
+		  rma                 Remove all compiled (GCC) files.
+		  comp                Run the most recently compiled file.
+		  +output_file_name   Place the output into "output_file_name".
 
 		Explanation:
 		  This program will compile a file and run it as well. If compiling lasts
@@ -88,27 +89,45 @@ elif [[ "$1" == "-h" ]]; then
 	EOF
 elif [[ "$1" == "rmt" ]]; then
 	remove_files "^test[0-9]\+\*$"
-elif [[ "$1" == "rmc" ]]; then
+elif [[ "$1" == "rma" ]]; then
 	remove_files "*$"
 else
-	trap 'if [[ -z "$output_file" ]]; then rm a.out; fi && exit 130' SIGINT
-	if ! [[ $(gcc -fsyntax-only "$@" 2> /dev/null) || "$@" =~ $VALID_EXTENSIONS ]]; then
+	trap 'if [[ -z $output_file ]]; then rm a.out; fi && exit 130' SIGINT
+	if ! [[ "$@" =~ $VALID_EXTENSIONS ]]; then
+		if gcc -fsyntax-only "$@" 2> /dev/null; then exit 0; fi
 		last_c_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
-		if [[ "$last_c_file" ]]; then
-			echo -e "Compiling and running $last_c_file...\n"
+		if [[ -f $last_c_file && "$last_c_file" =~ $VALID_EXTENSIONS ]]; then
 			set -- "$@" "$last_c_file"
+			last_c_file=" $last_c_file"
 		else
-			echo "There are no C/C++ files here"
+			echo "There are no C/C++/Go files here"
 			exit 2
 		fi
 	fi
+	case "${BASH_REMATCH[1]}" in
+		c) compiler='gcc';;
+		go) command -v gccgo &> /dev/null && compiler='gccgo' || compiler='gcc';;
+		*) compiler='g++';;
+	esac
+	echo -e "\e[1;35mCompiling ($compiler)$last_c_file...\e[0;1m"
+	shm=$(mktemp)
+	(
+		loading='━╲┃╱'
+		while [[ -f $shm ]]; do
+			printf "${loading:i++%4:1}\e[2D"
+	    sleep .08
+		done
+	) &
 	start=$(date +%s%N)
-	gcc "$@" 2>&1 || exit
+	"$compiler" "$@" 2>&1
+	[[ $? != 0 ]] && rm "$shm" && exit 1
 	end=$(date +%s%N)
-	if [[ -f "$output_file" ]]; then
+	rm "$shm"
+	[[ $C_BENCHMARK ]] && echo "Time: $(bc <<< "scale=2; ($end-$start)/1000000000")s"
+	if [[ -f $output_file ]]; then
 		run_file "$output_file"
 		check_runtime
-	elif [[ -f "./a.out" ]]; then
+	elif [[ -f ./a.out ]]; then
 		run_file a.out
 		check_runtime
 		if [[ $(( end - start )) -lt 500000000 ]]; then
