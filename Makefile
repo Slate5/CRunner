@@ -1,33 +1,33 @@
 # Usage:
-# make           # install c
+# make           # install cr
 # make clean     # remove symbolic link and previously installed directory, if any
-# make remove    # uninstall c
+# make remove    # uninstall cr
 
-c_path := $(abspath $(dir $(MAKEFILE_LIST)))
-old_c_chk := $(shell readlink -fn /usr/local/bin/c | sed -E 's/(.*)\/c/\1/')
+cr_path := $(abspath $(dir $(MAKEFILE_LIST)))
+old_cr_chk := $(shell readlink -fn /usr/local/bin/cr | sed -E 's/(.*)\/cr/\1/')
 
 define remove_old_files =
-	if test "$(old_c_chk)" != "/usr/local/bin"; then\
-		sudo rm /usr/local/bin/c;\
+	if test "$(old_cr_chk)" != "/usr/local/bin"; then\
+		sudo rm /usr/local/bin/cr;\
 		echo "Symbolic link removed";\
-		if test "$(old_c_chk)" != "$(c_path)"; then\
-			rm -rf "$(old_c_chk)";\
-			echo "\e[4mOld c directory removed: $(old_c_chk)\e[24m";\
+		if test "$(old_cr_chk)" != "$(cr_path)"; then\
+			rm -rf "$(old_cr_chk)";\
+			echo "\e[4mOld CRunner directory removed: $(old_cr_chk)\e[24m";\
 		fi\
 	fi
 endef
 
 install: configure clean
 	$(info Installing...)
-	sudo ln -s "$(c_path)/c" /usr/local/bin/
+	sudo ln -s "$(cr_path)/cr" /usr/local/bin/
 
 remove: clean
 	$(info Removing...)
-	rm -rf "$(c_path)"
+	rm -rf "$(cr_path)"
 
 configure:
 	$(info Configuring...)
-	chmod 755 "$(c_path)/c"
+	chmod 755 "$(cr_path)/cr"
 
 clean:
 	$(info Cleaning up...)

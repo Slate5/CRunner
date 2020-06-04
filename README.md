@@ -1,19 +1,19 @@
-# c-runner
+# CRunner
 
-Simple bash script for compiling, running and testing C/C++ files. For the quick running of file no need for `gcc file.c` and then `./a.out`. Just `c` is enough for the last modified file.c. Everything is explained in the help text, I hope...
+CRunner is a command for compiling, running and testing C/C++ and Go files. For the quick running of file no need for `gcc file.c` and then `./a.out`. Just `cr` is enough for the last modified file.c. Everything is explained in the help text, I hope...
 
 ## Installation
 
 ```
-git clone https://github.com/Slate5/c-runner.git
-make -f c-runner/Makefile
+git clone https://github.com/Slate5/CRunner.git
+make -f CRunner/Makefile
 ```
 
 ## Use
 
 Check out help text:\
-`c (-h|--help)`
+`cr -h`
 
 ## Uninstallation
 
-From c-runner directory: `make remove && cd`
+From CRunner directory: `make remove && cd`

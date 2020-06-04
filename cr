@@ -7,7 +7,7 @@ rm "$error_msgs"
 exec 2>&3
 
 run_file() {
-	[[ "$1" != "a.out" ]] && comp_file=" $1"
+	[[ "$1" != "a.out" ]] && local comp_file=" $1"
 	echo -e "\e[1;35mRunning$comp_file...\e[1;0m"
 	if [[ $C_BENCHMARK ]]; then /usr/bin/time -f "$TIME" "./$1"
 	else "./$1"
@@ -21,13 +21,14 @@ check_runtime() {
 		tput sgr0
 		[[ $output_file ]] && rm -v "$output_file" || rm a.out
 		exit 1
-	else
-		desc_4=$(cat <&4)
+	elif [[ $C_BENCHMARK ]]; then
+		local desc_4=$(cat <&4)
 		sed "s/....+..../$(grep -o '....+....' <<< "$desc_4" | bc)/" <<< "$desc_4"
 	fi
 }
 
 remove_files() {
+	local file
 	for file in $(ls -F | grep "$1"); do
 		readelf -p .comment "./$file" | grep -Eq '(GCC|clang)' && rm -v "./$file"
 	done
@@ -52,14 +53,14 @@ else
 fi
 
 if [[ -x $1 && -z $2 ]]; then
-	if (readelf -p .comment "./$1" | grep -Eq '(GCC|clang)'); then
+	if readelf -p .comment "./$1" |& grep -Eq '(GCC|clang)'; then
 		run_file "$1"
 		check_runtime
 	else echo "Not a GCC compiled file: $1"
 	fi
 elif [[ "$1" == "comp" ]]; then
 	for file in $(ls -Ft | grep '*$'); do
-		if (readelf -p .comment "./$file" | grep -Eq '(GCC|clang)'); then
+		if readelf -p .comment "./$file" |& grep -Eq '(GCC|clang)'; then
 			run_file "$file"
 			check_runtime
 			exit 0
@@ -70,9 +71,9 @@ elif [[ "$1" == "-h" ]]; then
 	cat <<- EOF
 		Compiles and runs programs written in C/C++/Go using GCC.
 
-		Default: c (runs last modified <file.c>)
-		Usage: c [file.c|compiled_file] [+output_file_name]
-		Examples: c file.c || c +output_file_name file.c || c +output_file_name
+		Default: cr (runs last modified <file.c>)
+		Usage: cr [file.c|compiled_file] [+output_file_name]
+		Examples: cr file.c || cr +output_file_name file.c || cr +output_file_name
 
 		  -b                  Show benchmark data.
 		  -h                  Display this information.
@@ -115,7 +116,7 @@ else
 		loading='━╲┃╱'
 		while [[ -f $shm ]]; do
 			printf "${loading:i++%4:1}\e[2D"
-	    sleep .08
+			sleep .08
 		done
 	) &
 	start=$(date +%s%N)
