@@ -35,8 +35,8 @@ remove_files() {
 }
 
 TIME="\nBenchmark data:\nreal\t%E\nuser\t%U\nsys\t%S\nusr+sys\t%U+%S\nCPU\t%P\nRSS\t%M KB"
-readonly VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?|go)($| )'
-[[ "$@" =~ (^| )-b($| ) ]] && C_BENCHMARK='yes'
+readonly VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?|go|ii?)($| )'
+[[ "$@" =~ (^| )-b($| ) ]] && export C_BENCHMARK='yes'
 
 if [[ "$@" =~ (^| )-h($| ) ]]; then set -- "-h"
 elif [[ "$@" =~ (^| )(comp|rm[ta])($| ) ]]; then set -- "${BASH_REMATCH[2]}"
@@ -106,7 +106,7 @@ else
 		fi
 	fi
 	case "${BASH_REMATCH[1]}" in
-		c) compiler='gcc';;
+		c|i) compiler='gcc';;
 		go) command -v gccgo &> /dev/null && compiler='gccgo' || compiler='gcc';;
 		*) compiler='g++';;
 	esac
@@ -125,7 +125,9 @@ else
 	end=$(date +%s%N)
 	rm "$shm"
 	[[ $C_BENCHMARK ]] && echo "Time: $(bc <<< "scale=2; ($end-$start)/1000000000")s"
-	if [[ -f $output_file ]]; then
+	if [[ "$output_file" =~ \.ii?$ ]]; then
+		cr "$output_file"
+	elif [[ -f $output_file ]]; then
 		run_file "$output_file"
 		check_runtime
 	elif [[ -f ./a.out ]]; then
