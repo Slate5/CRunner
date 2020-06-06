@@ -1,0 +1,99 @@
+# cr completion (modified gcc completion)                 -*- shell-script -*-
+
+_cr()
+{
+	local cur prev prev2 words cword argument prefix prefix_length
+	_init_completion || return
+
+	# CRunner's local variables
+	local option C="$1" VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?|go|ii?)$'
+
+	# Test that GCC is recent enough and if not fallback to
+	# parsing of --completion option.
+	if ! $1 --completion=" " 2>/dev/null; then
+		if [[ "$cur" == -* ]]; then
+			local cc=$($1 -print-prog-name=cc1 2>/dev/null)
+			[[ $cc ]] || return
+			COMPREPLY=($( compgen -W "$($cc --help 2>/dev/null | tr '\t' ' ' |\
+				command sed -e '/^  *-/!d' -e 's/ *-\([^][ <>]*\).*/-\1/')" \
+				-- "$cur" ))
+			[[ $COMPREPLY == *= ]] && compopt -o nospace
+		else
+			_filedir
+		fi
+		return
+	fi
+
+	# CRunner: Checks every previous option provided to find a source file.
+	#          If any, an adequate Compiler will be used for tab completion.
+	for option in "${COMP_WORDS[@]:1}"; do
+		if [[ "$option" =~ $VALID_EXTENSIONS ]]; then
+			case "$BASH_REMATCH" in
+				.c|.i) C='gcc';;
+				.go) command -v gccgo &>/dev/null && C='gccgo' || C='gcc';;
+				*) C='g++';;
+			esac
+		elif [[ "$option" =~ ^\+output-file[0-9]+$ ]]; then
+			local output_file_used='yes'
+		elif [[ "$option" =~ ^(comp|rmt|rma|-h)$ ]]; then
+			[[ "$option" != "$cur" ]] && COMPREPLY=($(command ls -F))
+			return
+		fi
+	done
+
+	# CRunner: If a source file isn't provided, primary tab completion will
+	#          depend on the last modified file in the current directory.
+	if [[ "$C" == cr ]]; then
+		case "$(command ls -t | command grep -Eom 1 "$VALID_EXTENSIONS")" in
+			.c|.i) C='gcc';;
+			.go) command -v gccgo &>/dev/null && C='gccgo' || C='gcc';;
+			.C*|.c*|.ii) command -v g++ &>/dev/null && C='g++' || C='gcc';;
+		esac
+	fi
+
+	# extract also for situations like: -fsanitize=add
+	if [[ $cword -gt 2 ]]; then
+		prev2="${COMP_WORDS[$cword - 2]}"
+	fi
+
+	# sample: -fsan
+	if [[ "$cur" == -* ]]; then
+		argument=$cur
+		prefix=""
+	# sample: -fsanitize=
+	elif [[ "$cur" == "=" && $prev == -* ]]; then
+		argument=$prev$cur
+		prefix=$prev$cur
+	# sample: -fsanitize=add
+	elif [[ "$prev" == "=" && $prev2 == -* ]]; then
+		argument=$prev2$prev$cur
+		prefix=$prev2$prev
+	# sample: --param lto-
+	elif [[ "$prev" == --param ]]; then
+		argument="$prev $cur"
+		prefix="$prev "
+	fi
+
+
+	# First two statements are added for CRunner's options
+	if [[ -z $output_file_used && "$cur" == +* ]]; then
+		local num=$(( $(command ls -rv output-file* 2>/dev/null |\
+			command grep -om 1 '[0-9]\+') + 1 ))
+		COMPREPLY=($(compgen -W "+output-file$num" -- "$cur"))
+	elif [[ "$cur" =~ ^[cr].* ]]; then
+		compopt -o nospace
+		COMPREPLY=($(compgen -W "comp rmt rma" -- "$cur"))
+	elif [[ -z $argument ]]; then
+		_filedir
+	else
+		# In situation like '-fsanitize=add' $cur is equal to last token.
+		# Thus we need to strip the beginning of suggested option.
+		prefix_length=$((${#prefix}+1))
+		local flags=$("$C" --completion="$argument" | cut -c $prefix_length-)
+		[[ "${flags}" == "=*" ]] && compopt -o nospace 2>/dev/null
+		COMPREPLY=( $(compgen -W "$flags" -- "") )
+	fi
+} &&
+complete -F _cr cr
+
+# ex: filetype=sh

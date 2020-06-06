@@ -9,7 +9,7 @@ exec 2>&3
 run_file() {
 	[[ "$1" != "a.out" ]] && local comp_file=" $1"
 	echo -e "\e[1;35mRunning$comp_file...\e[1;0m"
-	if [[ $C_BENCHMARK ]]; then /usr/bin/time -f "$TIME" "./$1"
+	if [[ $C_BENCHMARK ]]; then command time -f "$TIME" "./$1"
 	else "./$1"
 	fi
 }
@@ -95,11 +95,13 @@ elif [[ "$1" == "rma" ]]; then
 else
 	trap 'if [[ -z $output_file ]]; then rm a.out; fi && exit 130' SIGINT
 	if ! [[ "$@" =~ $VALID_EXTENSIONS ]]; then
-		if gcc -fsyntax-only "$@" 2> /dev/null; then exit 0; fi
-		last_c_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
-		if [[ -f $last_c_file && "$last_c_file" =~ $VALID_EXTENSIONS ]]; then
-			set -- "$@" "$last_c_file"
-			last_c_file=" $last_c_file"
+		if gcc -fsyntax-only "$@"; then exit 0
+		elif grep -q -- '--completion=' <&4; then exit 1
+		fi
+		last_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
+		if [[ -f $last_file && "$last_file" =~ $VALID_EXTENSIONS ]]; then
+			set -- "$@" "$last_file"
+			last_file=" $last_file"
 		else
 			echo "There are no C/C++/Go files here"
 			exit 2
@@ -107,10 +109,10 @@ else
 	fi
 	case "${BASH_REMATCH[1]}" in
 		c|i) compiler='gcc';;
-		go) command -v gccgo &> /dev/null && compiler='gccgo' || compiler='gcc';;
-		*) compiler='g++';;
+		go) command -v gccgo &>/dev/null && compiler='gccgo' || compiler='gcc';;
+		*) command -v g++ &>/dev/null && compiler='g++' || compiler='gcc';;
 	esac
-	echo -e "\e[1;35mCompiling ($compiler)$last_c_file...\e[0;1m"
+	echo -e "\e[1;35mCompiling ($compiler)$last_file...\e[0;1m"
 	shm=$(mktemp)
 	(
 		loading='━╲┃╱'
