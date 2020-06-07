@@ -17,13 +17,12 @@ run_file() {
 check_runtime() {
 	if [[ $? != 0 ]]; then
 		tput setaf 1
-		sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4
+		sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4 >&2
+		calc_usr_sys
 		tput sgr0
 		[[ $output_file ]] && rm -v "$output_file" || rm a.out
 		exit 1
-	elif [[ $C_BENCHMARK ]]; then
-		local desc_4=$(cat <&4)
-		sed "s/....+..../$(grep -o '....+....' <<< "$desc_4" | bc)/" <<< "$desc_4"
+	elif [[ $C_BENCHMARK ]]; then calc_usr_sys
 	fi
 }
 
@@ -32,6 +31,11 @@ remove_files() {
 	for file in $(ls -F | grep "$1"); do
 		readelf -p .comment "./$file" | grep -Eq '(GCC|clang)' && rm -v "./$file"
 	done
+}
+
+calc_usr_sys() {
+	local desc_4=$(cat <&4)
+	sed "s/....+..../$(grep -o '....+....' <<< "$desc_4" | bc)/" <<< "$desc_4"
 }
 
 TIME="\nBenchmark data:\nreal\t%E\nuser\t%U\nsys\t%S\nusr+sys\t%U+%S\nCPU\t%P\nRSS\t%M KB"
@@ -95,12 +99,12 @@ elif [[ "$1" == "rma" ]]; then
 else
 	trap 'if [[ -z $output_file ]]; then rm a.out; fi && exit 130' SIGINT
 	if ! [[ "$@" =~ $VALID_EXTENSIONS ]]; then
-		if gcc -fsyntax-only "$@"; then exit 0
+		if gcc "$@"; then exit 0
 		elif grep -q -- '--completion=' <&4; then exit 1
 		fi
 		last_file=$(ls -t | grep -Em 1 "$VALID_EXTENSIONS")
 		if [[ -f $last_file && "$last_file" =~ $VALID_EXTENSIONS ]]; then
-			set -- "$@" "$last_file"
+			set -- "$last_file" "$@"
 			last_file=" $last_file"
 		else
 			echo "There are no C/C++/Go files here"
