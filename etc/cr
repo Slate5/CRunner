@@ -75,11 +75,14 @@ _cr()
 	fi
 
 
-	# First two statements are added for CRunner's options
+	# First three statements are added for CRunner's options
 	if [[ -z $output_file_used && "$cur" == +* ]]; then
 		local num=$(( $(command ls -rv output-file* 2>/dev/null |\
 			command grep -om 1 '[0-9]\+') + 1 ))
 		COMPREPLY=($(compgen -W "+output-file$num" -- "$cur"))
+	elif [[ "$cur" == a* ]]; then
+		compopt -o nospace
+		COMPREPLY=($(compgen -W "argv=" -- "$cur"))
 	elif [[ "$cur" =~ ^[cr].* ]]; then
 		compopt -o nospace
 		COMPREPLY=($(compgen -W "comp rmt rma" -- "$cur"))

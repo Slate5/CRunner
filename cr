@@ -9,15 +9,15 @@ exec 2>&3
 run_file() {
 	[[ "$1" != "a.out" ]] && local comp_file=" $1"
 	echo -e "\e[1;35mRunning$comp_file...\e[1;0m"
-	if [[ $C_BENCHMARK ]]; then command time -f "$TIME" "./$1"
-	else "./$1"
+	if [[ $C_BENCHMARK ]]; then command time -f "$TIME" "./$1" $argv
+	else "./$1" $argv
 	fi
 }
 
 check_runtime() {
 	if [[ $? != 0 ]]; then
 		tput setaf 1
-		sed -E "s/\/.*[0-9]+ (.+) .*/Runtime Error: \1/" <&4 >&2
+		sed -E "s/\/.*[0-9]+ (.+)\"\..*/Runtime Error: \1/" <&4 >&2
 		calc_usr_sys
 		tput sgr0
 		[[ $output_file ]] && rm -v "$output_file" || rm a.out
@@ -49,6 +49,7 @@ else
 		shift
 		case "$arg" in
 			-b) ;;
+			argv=*) export argv+="${arg:5} ";;
 			+*) output_file="${arg:1}"; set -- "$@" "-o" "$output_file";;
 			-o) output_file="$1";&
 			*) set -- "$@" "$arg";;
@@ -85,6 +86,7 @@ elif [[ "$1" == "-h" ]]; then
 		  rmt                 Remove compiled "test(n)" files.
 		  rma                 Remove all compiled (GCC) files.
 		  comp                Run the most recently compiled file.
+		  argv="args"         Pass the arguments to the compiled file.
 		  +output_file_name   Place the output into "output_file_name".
 
 		Explanation:
@@ -132,7 +134,8 @@ else
 	rm "$shm"
 	[[ $C_BENCHMARK ]] && echo "Time: $(bc <<< "scale=2; ($end-$start)/1000000000")s"
 	if [[ "$output_file" =~ \.ii?$ ]]; then
-		cr "$output_file"
+		for arg do [[ "$arg" =~ --?..+ ]] && flags+="$arg "; done
+		cr "$output_file" $flags
 	elif [[ -f $output_file ]]; then
 		run_file "$output_file"
 		check_runtime
