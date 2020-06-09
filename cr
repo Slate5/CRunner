@@ -88,6 +88,7 @@ elif [[ "$1" == "-h" ]]; then
 		  comp                Run the most recently compiled file.
 		  argv="args"         Pass the arguments to the compiled file.
 		  +output_file_name   Place the output into "output_file_name".
+		  flush               Flush Page Cache only and show memory state.
 
 		Explanation:
 		  This program will compile a file and run it as well. If compiling lasts
@@ -98,6 +99,10 @@ elif [[ "$1" == "rmt" ]]; then
 	remove_files "^test[0-9]\+\*$"
 elif [[ "$1" == "rma" ]]; then
 	remove_files "*$"
+elif [[ "$1" == "flush" ]]; then
+	echo -e "\e[1;31mMemory state before:\n$(free -h)\n"
+	sudo sh -c "sync; echo 1 > /proc/sys/vm/drop_caches"
+	echo -e "\e[1;32mMemory state now:\n$(free -h)\e[0m"
 else
 	trap 'if [[ -z $output_file ]]; then rm a.out; fi && exit 130' SIGINT
 	if ! [[ "$@" =~ $VALID_EXTENSIONS ]]; then

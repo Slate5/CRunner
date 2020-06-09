@@ -35,7 +35,7 @@ _cr()
 			esac
 		elif [[ "$option" =~ ^\+output-file[0-9]+$ ]]; then
 			local output_file_used='yes'
-		elif [[ "$option" =~ ^(comp|rmt|rma|-h)$ ]]; then
+		elif [[ "$option" =~ ^(comp|rmt|rma|flush|-h)$ ]]; then
 			[[ "$option" != "$cur" ]] && COMPREPLY=($(command ls -F))
 			return
 		fi
@@ -83,9 +83,9 @@ _cr()
 	elif [[ "$cur" == a* ]]; then
 		compopt -o nospace
 		COMPREPLY=($(compgen -W "argv=" -- "$cur"))
-	elif [[ "$cur" =~ ^[cr].* ]]; then
+	elif [[ "$cur" =~ ^[crf].* ]]; then
 		compopt -o nospace
-		COMPREPLY=($(compgen -W "comp rmt rma" -- "$cur"))
+		COMPREPLY=($(compgen -W "comp rmt rma flush" -- "$cur"))
 	elif [[ -z $argument ]]; then
 		_filedir
 	else
