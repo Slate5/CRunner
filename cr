@@ -40,22 +40,18 @@ calc_usr_sys() {
 
 TIME="\nBenchmark data:\nreal\t%E\nuser\t%U\nsys\t%S\nusr+sys\t%U+%S\nCPU\t%P\nRSS\t%M KB"
 readonly VALID_EXTENSIONS='\b\.(c(c?|pp?|[x+]{2})|C(PP)?|go|ii?)($| )'
-[[ "$@" =~ (^| )-b($| ) ]] && export C_BENCHMARK='yes'
 
-if [[ "$@" =~ (^| )-h($| ) ]]; then set -- "-h"
-elif [[ "$@" =~ (^| )(comp|rm[ta])($| ) ]]; then set -- "${BASH_REMATCH[2]}"
-else
-	for arg do
-		shift
-		case "$arg" in
-			-b) ;;
-			argv=*) export argv+="${arg:5} ";;
-			+*) output_file="${arg:1}"; set -- "$@" "-o" "$output_file";;
-			-o) output_file="$1";&
-			*) set -- "$@" "$arg";;
-		esac
-	done
-fi
+for arg do
+	shift
+	case "$arg" in
+		-h|rmt|rma|flush) set -- "$arg"; break;;
+		-b) export C_BENCHMARK='yes';;
+		argv=*) export argv+="${arg:5} ";;
+		+*) output_file="${arg:1}"; set -- "$@" "-o" "$output_file";;
+		-o) output_file="$1";&
+		*) set -- "$@" "$arg";;
+	esac
+done
 
 if [[ -x $1 && -z $2 ]]; then
 	if readelf -p .comment "./$1" |& grep -Eq '(GCC|clang)'; then

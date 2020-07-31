@@ -13,7 +13,7 @@ define remove_old_files =
 		echo "Symbolic links removed";\
 		if test "$(old_cr_chk)" != "$(cr_path)"; then\
 			rm -rf "$(old_cr_chk)";\
-		echo "\e[4mOld CRunner directory removed: $(old_cr_chk)\e[24m";\
+			printf "\e[4mOld CRunner directory removed: $(old_cr_chk)\e[24m\n";\
 		fi\
 	fi
 endef

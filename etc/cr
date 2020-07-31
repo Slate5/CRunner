@@ -35,7 +35,7 @@ _cr()
 			esac
 		elif [[ "$option" =~ ^\+output-file[0-9]+$ ]]; then
 			local output_file_used='yes'
-		elif [[ "$option" =~ ^(comp|rmt|rma|flush|-h)$ ]]; then
+		elif [[ "$option" =~ ^(rmt|rma|flush|-h)$ ]]; then
 			[[ "$option" != "$cur" ]] && COMPREPLY=($(command ls -F))
 			return
 		fi
@@ -74,18 +74,24 @@ _cr()
 		prefix="$prev "
 	fi
 
-
-	# First three statements are added for CRunner's options
+	# CRunner: Save output file using "+"
 	if [[ -z $output_file_used && "$cur" == +* ]]; then
 		local num=$(( $(command ls -rv output-file* 2>/dev/null |\
 			command grep -om 1 '[0-9]\+') + 1 ))
-		COMPREPLY=($(compgen -W "+output-file$num" -- "$cur"))
+		COMPREPLY="+output-file$num"
+	# CRunner: Pass the arguments to running file using "argv="
 	elif [[ "$cur" == a* ]]; then
 		compopt -o nospace
-		COMPREPLY=($(compgen -W "argv=" -- "$cur"))
-	elif [[ "$cur" =~ ^[crf].* ]]; then
+		COMPREPLY=($(compgen -W 'argv=\"' -- "$cur")) || _filedir
+	# CRunner: Finish arguments input (argv="")
+	elif [[ "$cur" == '"'* ]]; then
+		COMPREPLY="$cur\""
+	# Next two statement are for other CRunner's options
+	elif [[ "$cur" == c* ]]; then
+		COMPREPLY=($(compgen -W "comp" -- "$cur")) || _filedir
+	elif [[ "$cur" =~ ^[rf].* ]]; then
 		compopt -o nospace
-		COMPREPLY=($(compgen -W "comp rmt rma flush" -- "$cur"))
+		COMPREPLY=($(compgen -W "rmt rma flush" -- "$cur")) || _filedir
 	elif [[ -z $argument ]]; then
 		_filedir
 	else
