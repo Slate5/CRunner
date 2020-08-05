@@ -1,6 +1,6 @@
 # CRunner
 
-CRunner is a command for compiling, running, and testing C/C++ and Go files. There is no need for entering `gcc file.c` and then `./a.out` since CRunner does that in one step with `cr`.
+CRunner is a command for compiling, running, and testing C, C++ and Go files. There is no need for entering `gcc file.c` and then `./a.out` since CRunner does that in one step with `cr`.
 
 ## Installation
 
@@ -20,7 +20,7 @@ For every option/flag, please check out the help text:\
 ### Note about tab completion:
 
 Primary CRunner uses tab completion according to the last modified file in the directory (e.g. if <i>file.go</i> is last modified file then `cr --<tab><tab>` will give the same result as `gccgo --<tab><tab>`), unless another type of source file is provided as an option (e.g. `cr file.c --<tab><tab>` is equivalent to `gcc file.c --<tab><tab>`).\
-When specifying the source file, the best practice would be to put a file on the list of flags as soon as possible to ensure that the adequate compiler for tab completion is used.\
+When specifying the source file, the best practice would be to put a file on the list of options (arguments) as soon as possible to ensure that the adequate compiler for tab completion is used.\
 Everything else is explained in the help text.
 
 Mint (v19.2 Cinnamon) supports only essential tab completion.

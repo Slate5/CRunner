@@ -19,7 +19,7 @@ _cr()
 				-- "$cur" ))
 			[[ $COMPREPLY == *= ]] && compopt -o nospace
 		else
-			_filedir
+			_crfiledir
 		fi
 		return
 	fi
@@ -74,33 +74,67 @@ _cr()
 		prefix="$prev "
 	fi
 
-	# CRunner: Save output file using "+"
-	if [[ -z $output_file_used && "$cur" == +* ]]; then
-		local num=$(( $(command ls -rv output-file* 2>/dev/null |\
-			command grep -om 1 '[0-9]\+') + 1 ))
-		COMPREPLY="+output-file$num"
-	# CRunner: Pass the arguments to running file using "argv="
-	elif [[ "$cur" == a* ]]; then
-		compopt -o nospace
-		COMPREPLY=($(compgen -W 'argv=\"' -- "$cur")) || _filedir
-	# CRunner: Finish arguments input (argv="")
-	elif [[ "$cur" == '"'* ]]; then
-		COMPREPLY="$cur\""
-	# Next two statement are for other CRunner's options
-	elif [[ "$cur" == c* ]]; then
-		COMPREPLY=($(compgen -W "comp" -- "$cur")) || _filedir
-	elif [[ "$cur" =~ ^[rf].* ]]; then
-		compopt -o nospace
-		COMPREPLY=($(compgen -W "rmt rma flush" -- "$cur")) || _filedir
+	if [[ "$prev" != "=" ]]; then
+		case "$cur" in
+			+*)
+				if [[ -z $output_file_used ]]; then
+					local num=$(( $(command ls -rv output-file* 2>/dev/null |\
+						command grep -om 1 '[0-9]\+') + 1 ))
+					COMPREPLY="+output-file$num"
+				fi
+				return 0
+				;;
+			e*)
+				compopt -o nospace
+				COMPREPLY=($(compgen -W "exec<<\'EOF\'" -- "$cur")) || _crfiledir
+				return 0
+				;;
+			a*)
+				compopt -o nospace
+				COMPREPLY=($(compgen -W "argv=\'" -- "$cur")) || _crfiledir
+				return 0
+				;;
+			[rf]*)
+				compopt -o nospace
+				COMPREPLY=($(compgen -W "rmt rma flush" -- "$cur")) || _crfiledir
+				return 0
+				;;
+			[cbo]*)
+				COMPREPLY=($(compgen -W "comp benchmark only-compile" -- "$cur")) || _crfiledir
+				return 0
+				;;
+		esac
+	fi
+
+	if [[ "$cur" == \'* ]]; then
+		COMPREPLY="${cur}'"
 	elif [[ -z $argument ]]; then
-		_filedir
+		_crfiledir
 	else
 		# In situation like '-fsanitize=add' $cur is equal to last token.
 		# Thus we need to strip the beginning of suggested option.
 		prefix_length=$((${#prefix}+1))
 		local flags=$("$C" --completion="$argument" | cut -c $prefix_length-)
 		[[ "${flags}" == "=*" ]] && compopt -o nospace 2>/dev/null
-		COMPREPLY=( $(compgen -W "$flags" -- "") )
+		COMPREPLY=($(compgen -W "$flags" -- ""))
+	fi
+} &&
+# CRunner: CR version of _filedir used for listing only relevant files,
+#          C, C++, or GO source files or GCC/Clang compiled files.
+#          If the current working directory doesn't contain any relevant
+#          file, then _filedir will be used instead.
+_crfiledir() {
+	local source_files comp_files
+	source_files="$(ls | grep -E "$VALID_EXTENSIONS")"
+	for file in $(ls -F | grep '*$'); do
+		if readelf -p .comment "./$file" |& grep -Eq '(GCC|clang)'; then
+			comp_files+="$file "
+		fi
+	done
+	if [[ "$cur" != */* && ( $source_files || $comp_files ) ]]; then
+		COMPREPLY=($(compgen -W "$source_files $comp_files" -- "$cur"))
+	else
+		_filedir
 	fi
 } &&
 complete -F _cr cr
